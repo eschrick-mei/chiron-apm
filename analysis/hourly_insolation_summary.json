@@ -1,0 +1,271 @@
+{
+  "analysis_date": "2026-03-12T09:42:55.133537",
+  "data_range": {
+    "start": "2026-02-10 00:00:00",
+    "end": "2026-03-12 00:00:00"
+  },
+  "sites_analyzed": 547,
+  "total_hourly_records": 394387,
+  "period_analysis": {
+    "DAWN": {
+      "total_hours": 32820,
+      "quality_distribution": {
+        "SATELLITE_LOW": 18203,
+        "UNKNOWN": 8472,
+        "BOTH_LOW": 3534,
+        "DAWN_DUSK_GOOD": 2005,
+        "DAWN_DUSK_MODERATE_DEV": 395,
+        "DAWN_DUSK_ONSITE_LOW": 168,
+        "ONSITE_DEAD": 40,
+        "DAWN_DUSK_ONSITE_HIGH": 3
+      },
+      "ratio_stats": {
+        "count": 2553,
+        "mean": 0.5771096297675534,
+        "median": 0.5201807228915662,
+        "p5": 0.08559945317840056,
+        "p10": 0.17385429208472689,
+        "p25": 0.33586792452830183,
+        "p75": 0.7465,
+        "p90": 0.9671556149732621,
+        "p95": 1.1519430830039528,
+        "p99": 1.731529
+      }
+    },
+    "MIDDAY": {
+      "total_hours": 147690,
+      "quality_distribution": {
+        "UNKNOWN": 109201,
+        "MIDDAY_GOOD": 18785,
+        "SATELLITE_LOW": 6576,
+        "MIDDAY_MODERATE_DEV": 4217,
+        "MIDDAY_ONSITE_LOW": 3209,
+        "MIDDAY_ONSITE_HIGH": 2398,
+        "MIDDAY_ONSITE_MODERATE_HIGH": 1763,
+        "MIDDAY_ONSITE_DEAD": 1536,
+        "BOTH_LOW": 4,
+        "ONSITE_DEAD": 1
+      },
+      "ratio_stats": {
+        "count": 31868,
+        "mean": 1.2622409930536906,
+        "median": 0.8899754625166414,
+        "p5": 0.2126657855361596,
+        "p10": 0.38386631210191086,
+        "p25": 0.6651899893934372,
+        "p75": 1.1346494141879737,
+        "p90": 1.6952823684210525,
+        "p95": 2.76313363207547,
+        "p99": 11.033444206349115
+      }
+    },
+    "DUSK": {
+      "total_hours": 49230,
+      "quality_distribution": {
+        "UNKNOWN": 19899,
+        "SATELLITE_LOW": 18204,
+        "BOTH_LOW": 5431,
+        "DAWN_DUSK_ONSITE_LOW": 2812,
+        "DAWN_DUSK_GOOD": 1852,
+        "DAWN_DUSK_MODERATE_DEV": 964,
+        "ONSITE_DEAD": 68
+      },
+      "ratio_stats": {
+        "count": 4333,
+        "mean": 0.3478324795341687,
+        "median": 0.21978061224489795,
+        "p5": 0.0004592015579357353,
+        "p10": 0.003251286738855296,
+        "p25": 0.0398005249343832,
+        "p75": 0.5625059331175836,
+        "p90": 0.873981920903955,
+        "p95": 1.0186917559153175,
+        "p99": 1.5618101881135493
+      }
+    },
+    "NIGHT": {
+      "total_hours": 164647,
+      "quality_distribution": {
+        "NIGHT_BOTH_HIGH": 127475,
+        "NIGHT_NORMAL": 36217,
+        "NIGHT_SATELLITE_HIGH": 944,
+        "NIGHT_ONSITE_HIGH": 11
+      },
+      "ratio_stats": {
+        "count": 57,
+        "mean": 0.002699482313025969,
+        "median": 0.001482758620689655,
+        "p5": 2.0299965120334847e-05,
+        "p10": 4.523809523809524e-05,
+        "p25": 0.0002161172161172161,
+        "p75": 0.003046511627906977,
+        "p90": 0.007864367816091953,
+        "p95": 0.00958585858585858,
+        "p99": 0.012234666666666665
+      }
+    }
+  },
+  "source_consistency": {
+    "total_site_days": 16410,
+    "avg_consistency": 0.17941634504705803,
+    "high_consistency_pct": 6.7702620353443015,
+    "consistency_distribution": {
+      ">=90%": 549,
+      "80-90%": 562,
+      "70-80%": 431,
+      "<70%": 14868
+    }
+  },
+  "optimal_thresholds": {
+    "midday_records": 31868,
+    "ratio_percentiles": {
+      "p1": 0.015060164600479218,
+      "p2": 0.061301218354430385,
+      "p5": 0.2126657855361596,
+      "p10": 0.38386631210191086,
+      "p25": 0.6651899893934372,
+      "p50": 0.8899754625166414,
+      "p75": 1.1346494141879737,
+      "p90": 1.6952823684210525,
+      "p95": 2.76313363207547,
+      "p98": 5.220607692307692,
+      "p99": 11.033444206349115
+    },
+    "threshold_tests": [
+      {
+        "min_ratio": 0.1,
+        "max_ratio": 1.5,
+        "valid_pct": 84.2
+      },
+      {
+        "min_ratio": 0.1,
+        "max_ratio": 2.0,
+        "valid_pct": 89.8
+      },
+      {
+        "min_ratio": 0.1,
+        "max_ratio": 2.5,
+        "valid_pct": 91.6
+      },
+      {
+        "min_ratio": 0.1,
+        "max_ratio": 3.0,
+        "valid_pct": 92.8
+      },
+      {
+        "min_ratio": 0.15,
+        "max_ratio": 1.5,
+        "valid_pct": 83.3
+      },
+      {
+        "min_ratio": 0.15,
+        "max_ratio": 2.0,
+        "valid_pct": 88.8
+      },
+      {
+        "min_ratio": 0.15,
+        "max_ratio": 2.5,
+        "valid_pct": 90.7
+      },
+      {
+        "min_ratio": 0.15,
+        "max_ratio": 3.0,
+        "valid_pct": 91.9
+      },
+      {
+        "min_ratio": 0.2,
+        "max_ratio": 1.5,
+        "valid_pct": 82.2
+      },
+      {
+        "min_ratio": 0.2,
+        "max_ratio": 2.0,
+        "valid_pct": 87.8
+      },
+      {
+        "min_ratio": 0.2,
+        "max_ratio": 2.5,
+        "valid_pct": 89.6
+      },
+      {
+        "min_ratio": 0.2,
+        "max_ratio": 3.0,
+        "valid_pct": 90.9
+      },
+      {
+        "min_ratio": 0.25,
+        "max_ratio": 1.5,
+        "valid_pct": 81.1
+      },
+      {
+        "min_ratio": 0.25,
+        "max_ratio": 2.0,
+        "valid_pct": 86.6
+      },
+      {
+        "min_ratio": 0.25,
+        "max_ratio": 2.5,
+        "valid_pct": 88.4
+      },
+      {
+        "min_ratio": 0.25,
+        "max_ratio": 3.0,
+        "valid_pct": 89.7
+      },
+      {
+        "min_ratio": 0.3,
+        "max_ratio": 1.5,
+        "valid_pct": 79.8
+      },
+      {
+        "min_ratio": 0.3,
+        "max_ratio": 2.0,
+        "valid_pct": 85.3
+      },
+      {
+        "min_ratio": 0.3,
+        "max_ratio": 2.5,
+        "valid_pct": 87.2
+      },
+      {
+        "min_ratio": 0.3,
+        "max_ratio": 3.0,
+        "valid_pct": 88.4
+      }
+    ],
+    "min_irradiance_tests": [
+      {
+        "min_irradiance": 5,
+        "records_above": "31868",
+        "pct_above": 100.0
+      },
+      {
+        "min_irradiance": 10,
+        "records_above": "31868",
+        "pct_above": 100.0
+      },
+      {
+        "min_irradiance": 20,
+        "records_above": "31702",
+        "pct_above": 99.5
+      },
+      {
+        "min_irradiance": 50,
+        "records_above": "29947",
+        "pct_above": 94.0
+      },
+      {
+        "min_irradiance": 100,
+        "records_above": "25997",
+        "pct_above": 81.6
+      }
+    ],
+    "recommended_thresholds": {
+      "min_irradiance_wm2": 50,
+      "ratio_min": 0.2,
+      "ratio_max": 2.0,
+      "dawn_dusk_ratio_min": 0.1,
+      "dawn_dusk_ratio_max": 5.0
+    }
+  }
+}

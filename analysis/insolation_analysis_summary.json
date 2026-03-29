@@ -1,0 +1,40 @@
+{
+  "analysis_period": "2025-12-12 to 2026-03-12",
+  "sites_analyzed": 547,
+  "site_days": 49230,
+  "onsite_zero_pct": 29.75,
+  "satellite_zero_pct": 1.11,
+  "ratio_reasonable_pct": 20.93,
+  "wa_pr_high_pct_old": 13.01,
+  "wa_pr_high_pct_new": 5.86,
+  "problem_sites_count": 351,
+  "failure_mode_distribution": {
+    "ONSITE_DEAD": 37153,
+    "GOOD_AGREEMENT": 8776,
+    "SATELLITE_LOW_MISS": 949,
+    "SATELLITE_HIGH_MISS": 868,
+    "BOTH_MISSING": 758,
+    "ONSITE_SUSPICIOUS_LOW": 283,
+    "ONSITE_STUCK_LOW": 162,
+    "MODERATE_DEVIATION": 147,
+    "ONSITE_SUSPICIOUS_HIGH": 91,
+    "ONSITE_EXTREME_HIGH": 30,
+    "SATELLITE_MISSING": 13
+  },
+  "recommended_thresholds": {
+    "min_insolation": 100,
+    "ratio_min": 0.2,
+    "ratio_max": 2.0,
+    "expected_min_pct": 0.2,
+    "expected_max_pct": 1.5,
+    "poa_satellite_adjustment": 1.15
+  },
+  "threshold_validation": {
+    "ratio_below_0.2_good_wapr_pct": "5-7%",
+    "ratio_0.9_to_1.5_good_wapr_pct": "60-68%",
+    "ratio_above_2.0_good_wapr_pct": "40-46%",
+    "poa_satellite_ratio_median": 1.02,
+    "poa_satellite_ratio_98th_pct": 2.04,
+    "validation_method": "physics-based onsite/satellite comparison with WA PR secondary sanity check"
+  }
+}

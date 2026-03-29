@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #0d1321;
+  --bg-tertiary: #131a2e;
+  --accent-teal: #2dd4bf;
+  --accent-cyan: #22d3ee;
+  --accent-purple: #818cf8;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  --border-color: rgba(45, 212, 191, 0.2);
+  --success: #22c55e;
+  --warning: #eab308;
+  --danger: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  @apply bg-chiron-bg-primary text-chiron-text-secondary antialiased;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-chiron-bg-primary;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-chiron-accent-teal/30 rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-chiron-accent-teal/50;
+}
+
+/* Tremor overrides for dark theme */
+.tremor-Card-root {
+  @apply bg-chiron-gradient border-chiron-accent-teal/20 !important;
+}
+
+.tremor-Title-root {
+  @apply text-chiron-text-primary !important;
+}
+
+.tremor-Text-root {
+  @apply text-chiron-text-secondary !important;
+}
+
+/* Animation for live indicator */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 8px var(--success);
+  }
+  50% {
+    opacity: 0.5;
+    box-shadow: 0 0 4px var(--success);
+  }
+}
+
+.live-dot {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Gradient text for headers */
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-chiron-header;
+}
+
+/* Card hover effects */
+.card-hover {
+  @apply transition-all duration-300 hover:border-chiron-accent-teal/40 hover:shadow-chiron-glow;
+}
+
+/* Status indicators */
+.status-healthy {
+  @apply border-l-4 border-l-chiron-status-success;
+}
+
+.status-warning {
+  @apply border-l-4 border-l-chiron-status-warning;
+}
+
+.status-danger {
+  @apply border-l-4 border-l-chiron-status-danger;
+}
+
+/* Fix Tremor chart text colors */
+.recharts-cartesian-axis-tick-value {
+  @apply fill-chiron-text-muted !important;
+}
+
+.recharts-legend-item-text {
+  @apply text-chiron-text-secondary !important;
+}
+
+/* Tremor select/dropdown overrides */
+[data-tremor-select] {
+  @apply bg-chiron-bg-secondary border-chiron-accent-teal/20 !important;
+}
+
+[data-tremor-selectitem] {
+  @apply hover:bg-chiron-bg-tertiary !important;
+}
