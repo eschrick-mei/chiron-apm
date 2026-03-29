@@ -242,7 +242,7 @@ class DataService:
             LONGITUDE,
             DELIVERY_PHASE,
             -- IRRADIANCE_TYPE: 1=GHI preferred, 2=POA preferred (default POA)
-            COALESCE(IRRADIANCE_TYPE, 2) as IRRADIANCE_TYPE,
+            COALESCE(IRRADIANCE_TYPE, '2') as IRRADIANCE_TYPE,
             -- Derive operational stage based on dates
             CASE
                 WHEN FC_ACTUAL_DATE IS NOT NULL AND FC_ACTUAL_DATE < CURRENT_DATE()
