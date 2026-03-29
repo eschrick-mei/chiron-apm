@@ -15,8 +15,15 @@ import threading
 # Add parent paths for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from CHIRON_MONITORING.config import Config
-from CHIRON_MONITORING.data import SnowflakeConnector
+try:
+    from CHIRON_MONITORING.config import Config
+    from CHIRON_MONITORING.data import SnowflakeConnector
+    _HAS_SNOWFLAKE = True
+except ImportError:
+    _HAS_SNOWFLAKE = False
+    Config = None
+    SnowflakeConnector = None
+
 from cache import RedisCache
 
 logger = logging.getLogger(__name__)
@@ -91,8 +98,10 @@ class DataService:
             cursor.close()
 
     @property
-    def config(self) -> Config:
+    def config(self):
         if self._config is None:
+            if not _HAS_SNOWFLAKE:
+                raise RuntimeError("Snowflake config not available — running in PG-only mode")
             config_path = Path(__file__).parent.parent.parent / "config.json"
             self._config = Config(config_file=str(config_path))
         return self._config
