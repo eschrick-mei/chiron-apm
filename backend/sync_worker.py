@@ -356,9 +356,12 @@ def _build_hourly_cols() -> str:
 
 def sync_hourly_data(sf: SnowflakeConnector, pg, days: int = None) -> int:
     """Incremental sync of hourly_data_live.
+    Chunks by 7-day windows to avoid OOM on small instances.
     Only pulls rows newer than the most recent timestamp in PG.
     For full sync, pass days=60."""
+    from io import StringIO
     t0 = time.time()
+    total_rows = 0
 
     if days is None:
         # Find last synced timestamp
@@ -366,68 +369,79 @@ def sync_hourly_data(sf: SnowflakeConnector, pg, days: int = None) -> int:
             cur.execute("SELECT MAX(measurementtime) FROM hourly_data_live")
             last = cur.fetchone()[0]
         if last:
-            # Overlap by 2 hours to catch late-arriving data
-            since = (last - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+            since_dt = last - timedelta(hours=2)
         else:
-            since = (datetime.utcnow() - timedelta(days=RETENTION_DAYS["hourly_data_live"])).strftime("%Y-%m-%d")
+            since_dt = datetime.utcnow() - timedelta(days=RETENTION_DAYS["hourly_data_live"])
     else:
-        since = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+        since_dt = datetime.utcnow() - timedelta(days=days)
+
+    # Break into 7-day chunks to stay within memory
+    chunk_days = 7
+    now = datetime.utcnow()
+    chunk_start = since_dt
 
     cols = _build_hourly_cols()
-    query = f"""
-        SELECT {cols}
-        FROM MEI_ASSET_MGMT_DB.PERFORMANCE.HOURLY_DATA_LIVE
-        WHERE DATA_TYPE = 'current'
-          AND MEASUREMENTTIME >= '{since}'
-        ORDER BY MEASUREMENTTIME
-    """
-    logger.info("hourly_data_live: fetching since %s ...", since)
-    rows = sf_query(sf, query)
-    if not rows:
-        log_sync(pg, "hourly_data_live", 0, int((time.time() - t0) * 1000), "empty")
-        return 0
 
-    # Convert to DataFrame for efficient bulk insert
-    df = pd.DataFrame(rows)
-    df.columns = [c.lower() for c in df.columns]
-
-    # Upsert via temp table
+    # Get PG column list once
     with pg.cursor() as cur:
-        # Create temp table
-        cur.execute("CREATE TEMP TABLE _hourly_tmp (LIKE hourly_data_live INCLUDING ALL) ON COMMIT DROP")
-
-        # Bulk copy into temp
-        from io import StringIO
-        buf = StringIO()
-        # Get columns that exist in both dataframe and table
         cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'hourly_data_live' AND column_name != 'extra' ORDER BY ordinal_position")
         pg_cols = [r[0] for r in cur.fetchall()]
-        common_cols = [c for c in pg_cols if c in df.columns]
 
-        sub_df = df[common_cols].copy()
-        sub_df.to_csv(buf, index=False, header=False, sep='\t', na_rep='\\N')
-        buf.seek(0)
-        cur.copy_from(buf, '_hourly_tmp', columns=common_cols, sep='\t', null='\\N')
+    while chunk_start < now:
+        chunk_end = min(chunk_start + timedelta(days=chunk_days), now)
+        since_str = chunk_start.strftime("%Y-%m-%d %H:%M:%S")
+        until_str = chunk_end.strftime("%Y-%m-%d %H:%M:%S")
 
-        # Upsert from temp
-        col_list = ", ".join(common_cols)
-        excluded = ", ".join(f"{c} = EXCLUDED.{c}" for c in common_cols if c not in ("siteid", "measurementtime", "data_type"))
-        cur.execute(f"""
-            INSERT INTO hourly_data_live ({col_list})
-            SELECT {col_list} FROM _hourly_tmp
-            ON CONFLICT (siteid, measurementtime, data_type) DO UPDATE SET {excluded}
-        """)
+        query = f"""
+            SELECT {cols}
+            FROM MEI_ASSET_MGMT_DB.PERFORMANCE.HOURLY_DATA_LIVE
+            WHERE DATA_TYPE = 'current'
+              AND MEASUREMENTTIME >= '{since_str}'
+              AND MEASUREMENTTIME < '{until_str}'
+            ORDER BY MEASUREMENTTIME
+        """
+        logger.info("hourly_data_live: chunk %s to %s ...", since_str[:10], until_str[:10])
+        rows = sf_query(sf, query)
+
+        if rows:
+            df = pd.DataFrame(rows)
+            df.columns = [c.lower() for c in df.columns]
+            common_cols = [c for c in pg_cols if c in df.columns]
+
+            with pg.cursor() as cur:
+                cur.execute("CREATE TEMP TABLE _hourly_tmp (LIKE hourly_data_live INCLUDING ALL) ON COMMIT DROP")
+                buf = StringIO()
+                sub_df = df[common_cols].copy()
+                sub_df.to_csv(buf, index=False, header=False, sep='\t', na_rep='\\N')
+                buf.seek(0)
+                cur.copy_from(buf, '_hourly_tmp', columns=common_cols, sep='\t', null='\\N')
+
+                col_list = ", ".join(common_cols)
+                excluded = ", ".join(f"{c} = EXCLUDED.{c}" for c in common_cols if c not in ("siteid", "measurementtime", "data_type"))
+                cur.execute(f"""
+                    INSERT INTO hourly_data_live ({col_list})
+                    SELECT {col_list} FROM _hourly_tmp
+                    ON CONFLICT (siteid, measurementtime, data_type) DO UPDATE SET {excluded}
+                """)
+            pg.commit()
+            total_rows += len(rows)
+            logger.info("hourly_data_live: chunk done, %d rows", len(rows))
+
+            # Free memory
+            del df, rows
+
+        chunk_start = chunk_end
 
     # Prune old data
     retention = RETENTION_DAYS["hourly_data_live"]
     with pg.cursor() as cur:
         cur.execute(f"DELETE FROM hourly_data_live WHERE measurementtime < NOW() - INTERVAL '{retention} days'")
-
     pg.commit()
+
     ms = int((time.time() - t0) * 1000)
-    log_sync(pg, "hourly_data_live", len(rows), ms)
-    logger.info("hourly_data_live: %d rows in %dms", len(rows), ms)
-    return len(rows)
+    log_sync(pg, "hourly_data_live", total_rows, ms)
+    logger.info("hourly_data_live: %d total rows in %dms", total_rows, ms)
+    return total_rows
 
 
 def _build_daily_cols() -> str:
