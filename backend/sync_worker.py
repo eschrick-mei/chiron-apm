@@ -265,11 +265,11 @@ def sync_forecast_data(sf: SnowflakeConnector, pg) -> int:
 
 
 def sync_te_operating(sf: SnowflakeConnector, pg) -> int:
-    """Sync last 12 months of TE_OPERATING."""
+    """Sync last 12 months of TE_OPERATING_FORECAST."""
     t0 = time.time()
     rows = sf_query(sf, """
-        SELECT SITE_ID, RECORD_DATE, REVENUE_TOTAL_PPA, MONTHLY_PRODUCTION
-        FROM MEI_FINANCE_DB.MAIN_FINANCE.TE_OPERATING
+        SELECT SP_NUM AS SITE_ID, RECORD_DATE, REVENUE_TOTAL_PPA, MONTHLY_PRODUCTION
+        FROM MEI_ASSET_MGMT_DB.PUBLIC.TE_OPERATING_FORECAST
         WHERE RECORD_DATE >= DATEADD(month, -12, CURRENT_DATE())
     """)
     if not rows:
@@ -351,8 +351,7 @@ def _build_hourly_cols() -> str:
         "VARIANCE_METER_INV",
     ]
     inv = [f"IN{i}_VALUE" for i in range(1, 117)]
-    meters = [f"M{i}_VALUE" for i in range(1, 6)]
-    return ", ".join(base + inv + meters)
+    return ", ".join(base + inv)
 
 
 def sync_hourly_data(sf: SnowflakeConnector, pg, days: int = None) -> int:
