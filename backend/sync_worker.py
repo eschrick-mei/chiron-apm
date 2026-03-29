@@ -92,7 +92,12 @@ ALERT_COLS = [
 
 def get_snowflake_connector() -> SnowflakeConnector:
     """Create a Snowflake connector from config.json."""
-    config_path = Path(__file__).parent.parent.parent / "config.json"
+    # Check multiple locations for config.json
+    candidates = [
+        Path(__file__).parent.parent / "config.json",          # /opt/chiron/config.json (EC2)
+        Path(__file__).parent.parent.parent / "config.json",   # repo-level config.json (local dev)
+    ]
+    config_path = next((p for p in candidates if p.exists()), candidates[0])
     config = Config(config_file=str(config_path))
     params = config.snowflake.connection_params
     params.pop("network_timeout", None)
