@@ -205,6 +205,9 @@ def sync_asset_registry(sf: SnowflakeConnector, pg) -> int:
         log_sync(pg, "asset_registry", 0, 0, "empty")
         return 0
 
+    # Filter out rows with null site_id
+    rows = [r for r in rows if r.get("SITE_ID")]
+
     with pg.cursor() as cur:
         cur.execute("DELETE FROM asset_registry")
         for row in rows:
