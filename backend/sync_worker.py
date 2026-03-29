@@ -241,6 +241,16 @@ def sync_forecast_data(sf: SnowflakeConnector, pg) -> int:
         log_sync(pg, "forecast_data", 0, 0, "empty")
         return 0
 
+    # Dedupe by primary key (site_id, attribute, month) — Snowflake may have duplicates
+    seen = set()
+    deduped = []
+    for r in rows:
+        key = (r.get("SITE_ID"), r.get("ATTRIBUTE"), r.get("MONTH"))
+        if key not in seen:
+            seen.add(key)
+            deduped.append(r)
+    rows = deduped
+
     with pg.cursor() as cur:
         cur.execute("DELETE FROM forecast_data")
         psycopg2.extras.execute_batch(cur, """
