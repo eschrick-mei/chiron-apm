@@ -114,73 +114,132 @@ class PgConnector:
 # SQL Translation: Snowflake → PostgreSQL
 # ============================================================================
 
+
+def _find_matching_paren(sql: str, start: int) -> int:
+    """Find the index of the closing ')' that matches the '(' at `start`.
+    Handles nested parentheses and quoted strings."""
+    depth = 0
+    i = start
+    in_single_quote = False
+    in_double_quote = False
+    while i < len(sql):
+        ch = sql[i]
+        if ch == "'" and not in_double_quote:
+            in_single_quote = not in_single_quote
+        elif ch == '"' and not in_single_quote:
+            in_double_quote = not in_double_quote
+        elif not in_single_quote and not in_double_quote:
+            if ch == '(':
+                depth += 1
+            elif ch == ')':
+                depth -= 1
+                if depth == 0:
+                    return i
+        i += 1
+    return -1  # unbalanced
+
+
+def _split_args(arg_str: str, expected: int = 3) -> list:
+    """Split a comma-separated argument string respecting nested parens and quotes.
+    Returns up to `expected` parts (last part gets the remainder)."""
+    parts = []
+    depth = 0
+    current = []
+    in_single_quote = False
+    in_double_quote = False
+    for ch in arg_str:
+        if ch == "'" and not in_double_quote:
+            in_single_quote = not in_single_quote
+        elif ch == '"' and not in_single_quote:
+            in_double_quote = not in_double_quote
+        elif not in_single_quote and not in_double_quote:
+            if ch == '(':
+                depth += 1
+            elif ch == ')':
+                depth -= 1
+            elif ch == ',' and depth == 0 and len(parts) < expected - 1:
+                parts.append(''.join(current).strip())
+                current = []
+                continue
+        current.append(ch)
+    parts.append(''.join(current).strip())
+    return parts
+
+
+def _translate_function(sql: str, func_name: str, replacer) -> str:
+    """Find all occurrences of func_name(...) in sql, parse args with balanced
+    parens, and replace using the replacer callback."""
+    pattern = re.compile(re.escape(func_name) + r'\s*\(', re.IGNORECASE)
+    result = []
+    last_end = 0
+    for m in pattern.finditer(sql):
+        open_idx = m.end() - 1  # index of the '('
+        close_idx = _find_matching_paren(sql, open_idx)
+        if close_idx == -1:
+            continue  # unbalanced — leave as-is
+        inner = sql[open_idx + 1: close_idx]
+        replacement = replacer(inner)
+        if replacement is not None:
+            result.append(sql[last_end:m.start()])
+            result.append(replacement)
+            last_end = close_idx + 1
+    result.append(sql[last_end:])
+    return ''.join(result)
+
+
 def _translate_sql(sql: str) -> str:
     """Convert Snowflake-dialect SQL to PostgreSQL."""
     out = sql
 
-    # DATEADD(unit, N, base) → (base + INTERVAL 'N unit')
-    # Handles negative N and expressions like CURRENT_TIMESTAMP()
-    out = re.sub(
-        r"DATEADD\s*\(\s*(\w+)\s*,\s*(-?\d+)\s*,\s*(.+?)\)",
-        _replace_dateadd,
-        out,
-        flags=re.IGNORECASE,
-    )
-
-    # CURRENT_TIMESTAMP() → NOW()
+    # 1. Simple function replacements FIRST (before DATEADD, so nested calls are clean)
     out = re.sub(r"CURRENT_TIMESTAMP\s*\(\s*\)", "NOW()", out, flags=re.IGNORECASE)
-
-    # CURRENT_DATE() → CURRENT_DATE  (remove parens)
     out = re.sub(r"CURRENT_DATE\s*\(\s*\)", "CURRENT_DATE", out, flags=re.IGNORECASE)
 
-    # DATE_TRUNC('unit', col) — same syntax in both, but Snowflake sometimes
-    # uses month without quotes in EXTRACT
-    # EXTRACT(MONTH FROM col) — same in both ✓
+    # 2. DATEADD(unit, N, base) → (base ± INTERVAL 'N unit')
+    def _dateadd_replacer(inner: str):
+        args = _split_args(inner, 3)
+        if len(args) != 3:
+            return None
+        unit = args[0].strip().lower()
+        try:
+            n = int(args[1].strip())
+        except ValueError:
+            return None
+        base = args[2].strip()
+        abs_n = abs(n)
+        sign = "+" if n >= 0 else "-"
+        return f"({base} {sign} INTERVAL '{abs_n} {unit}')"
 
-    # TIMESTAMPDIFF(unit, a, b) → EXTRACT(EPOCH FROM (b - a)) / divisor
-    out = re.sub(
-        r"TIMESTAMPDIFF\s*\(\s*(\w+)\s*,\s*(.+?)\s*,\s*(.+?)\)",
-        _replace_timestampdiff,
-        out,
-        flags=re.IGNORECASE,
-    )
+    out = _translate_function(out, "DATEADD", _dateadd_replacer)
 
-    # ABS(TIMESTAMPDIFF(...)) is common — the above handles the inner part
+    # 3. TIMESTAMPDIFF(unit, a, b) → EXTRACT(EPOCH FROM (b - a)) / divisor
+    def _timestampdiff_replacer(inner: str):
+        args = _split_args(inner, 3)
+        if len(args) != 3:
+            return None
+        unit = args[0].strip().lower()
+        a = args[1].strip()
+        b = args[2].strip()
+        divisors = {
+            "second": None, "seconds": None,
+            "minute": 60, "minutes": 60,
+            "hour": 3600, "hours": 3600,
+            "day": 86400, "days": 86400,
+        }
+        divisor = divisors.get(unit)
+        expr = f"EXTRACT(EPOCH FROM ({b} - {a}))"
+        if divisor:
+            return f"({expr} / {divisor})"
+        return expr
 
-    # Fully-qualified table names → local table names
+    out = _translate_function(out, "TIMESTAMPDIFF", _timestampdiff_replacer)
+
+    # 4. Fully-qualified table names → local table names
     out = re.sub(r"MEI_ASSET_MGMT_DB\.PUBLIC\.", "", out, flags=re.IGNORECASE)
     out = re.sub(r"MEI_ASSET_MGMT_DB\.PERFORMANCE\.", "", out, flags=re.IGNORECASE)
     out = re.sub(r"MEI_FINANCE_DB\.MAIN_FINANCE\.", "", out, flags=re.IGNORECASE)
 
-    # Snowflake's ILIKE → PG's ILIKE (same ✓)
-    # Snowflake's NVL → PG's COALESCE
+    # 5. NVL → COALESCE
     out = re.sub(r"\bNVL\s*\(", "COALESCE(", out, flags=re.IGNORECASE)
 
     return out
-
-
-def _replace_dateadd(match) -> str:
-    """Replace DATEADD(unit, N, base) with PG interval arithmetic."""
-    unit = match.group(1).lower()
-    n = int(match.group(2))
-    base = match.group(3).strip()
-    # Handle nested parens in base — find the matching close
-    abs_n = abs(n)
-    sign = "+" if n >= 0 else "-"
-    return f"({base} {sign} INTERVAL '{abs_n} {unit}')"
-
-
-def _replace_timestampdiff(match) -> str:
-    """Replace TIMESTAMPDIFF(unit, a, b) with PG epoch diff."""
-    unit = match.group(1).lower()
-    a = match.group(2).strip()
-    b = match.group(3).strip()
-    if unit in ("second", "seconds"):
-        return f"EXTRACT(EPOCH FROM ({b} - {a}))"
-    elif unit in ("minute", "minutes"):
-        return f"(EXTRACT(EPOCH FROM ({b} - {a})) / 60)"
-    elif unit in ("hour", "hours"):
-        return f"(EXTRACT(EPOCH FROM ({b} - {a})) / 3600)"
-    elif unit in ("day", "days"):
-        return f"(EXTRACT(EPOCH FROM ({b} - {a})) / 86400)"
-    return f"EXTRACT(EPOCH FROM ({b} - {a}))"
