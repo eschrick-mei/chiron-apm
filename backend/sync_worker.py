@@ -66,9 +66,9 @@ INTERVALS = {
 
 # How many days of history to keep for time-series tables
 RETENTION_DAYS = {
-    "hourly_data_live": 60,
-    "daily_data_live":  90,
-    "chiron_alerts":    90,
+    "hourly_data_live": 365,
+    "daily_data_live":  730,
+    "chiron_alerts":    365,
 }
 
 # Columns we explicitly track (rest go into `extra` JSONB)
