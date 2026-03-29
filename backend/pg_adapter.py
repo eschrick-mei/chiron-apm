@@ -242,4 +242,7 @@ def _translate_sql(sql: str) -> str:
     # 5. NVL → COALESCE
     out = re.sub(r"\bNVL\s*\(", "COALESCE(", out, flags=re.IGNORECASE)
 
+    # 6. ::FLOAT → ::NUMERIC (PG's ROUND() requires NUMERIC, not FLOAT)
+    out = re.sub(r"::FLOAT\b", "::NUMERIC", out, flags=re.IGNORECASE)
+
     return out
