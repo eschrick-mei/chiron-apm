@@ -6,6 +6,7 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import {
   useAlerts,
   useAlertStats,
+  useAlertDetail,
   usePriorityQueue,
   usePrioritySummary,
 } from "@/hooks/useFleetData";
@@ -37,6 +38,8 @@ import {
   Card,
   Title,
   Badge,
+  AreaChart,
+  LineChart,
 } from "@tremor/react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { alertApi } from "@/lib/api";
@@ -56,6 +59,21 @@ export default function ActiveIssuesPage() {
   const [typeFilter, setTypeFilter] = useState("");
   const [presetFilter, setPresetFilter] = useState<PresetFilter>("");
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null);
+  const [expandedAlertData, setExpandedAlertData] = useState<{
+    alertId: string;
+    siteId: string;
+    alertType: string;
+    equipmentId?: string;
+  } | null>(null);
+  const [verifyingAlert, setVerifyingAlert] = useState<string | null>(null);
+
+  // Alert detail chart data
+  const { data: alertDetailData, isLoading: detailLoading } = useAlertDetail(
+    expandedAlertData?.alertId || null,
+    expandedAlertData?.siteId || null,
+    expandedAlertData?.alertType || null,
+    expandedAlertData?.equipmentId
+  );
 
   // Data
   const { data: alertsData, isLoading: alertsLoading } = useAlerts({
@@ -85,6 +103,21 @@ export default function ActiveIssuesPage() {
       queryClient.invalidateQueries({ queryKey: ["alerts"] });
     },
   });
+
+  const handleVerify = async (alert: Record<string, unknown>) => {
+    const id = alert.ALERT_ID as string;
+    setVerifyingAlert(id);
+    try {
+      await verifyMutation.mutateAsync({
+        alertId: id,
+        siteId: alert.SITE_ID as string,
+        alertType: alert.ALERT_TYPE as string,
+        equipmentId: alert.EQUIPMENT_ID as string | undefined,
+      });
+    } finally {
+      setVerifyingAlert(null);
+    }
+  };
 
   // Merge and enrich alerts with priority data
   const enrichedAlerts = useMemo(() => {
@@ -397,7 +430,20 @@ export default function ActiveIssuesPage() {
               {/* Main row */}
               <div
                 className="grid grid-cols-[2rem_7rem_1fr_8rem_6rem_5rem_5rem_6rem_5rem] gap-2 px-4 py-3 items-center hover:bg-chiron-bg-tertiary/30 cursor-pointer transition-colors"
-                onClick={() => setExpandedAlert(isExpanded ? null : alertId)}
+                onClick={() => {
+                  if (isExpanded) {
+                    setExpandedAlert(null);
+                    setExpandedAlertData(null);
+                  } else {
+                    setExpandedAlert(alertId);
+                    setExpandedAlertData({
+                      alertId,
+                      siteId: alert.SITE_ID as string,
+                      alertType: alert.ALERT_TYPE as string,
+                      equipmentId: alert.EQUIPMENT_ID as string | undefined,
+                    });
+                  }
+                }}
               >
                 {/* Expand icon */}
                 <div>
@@ -480,45 +526,201 @@ export default function ActiveIssuesPage() {
 
               {/* Expanded detail */}
               {isExpanded && (
-                <div className="px-4 pb-4 pl-12 grid grid-cols-3 gap-4 text-xs">
-                  <div className="space-y-1">
-                    <p className="font-medium text-chiron-text-muted">Detection</p>
-                    <p className="text-chiron-text-secondary">
-                      Detected: {formatDateTime((alert.DETECTED_AT as string) || "")}
-                    </p>
-                    <p className="text-chiron-text-secondary">
-                      Checks: {(alert.CHECK_COUNT as number) || 0}
-                    </p>
-                    <p className="text-chiron-text-secondary">
-                      Verification: {verification}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-medium text-chiron-text-muted">Impact</p>
-                    <p className="text-chiron-text-secondary">
-                      kW Offline: {alert.kw_offline ? `${(alert.kw_offline as number).toFixed(1)} kW` : "--"}
-                    </p>
-                    <p className="text-chiron-text-secondary">
-                      Daily Loss: {revLoss ? `$${revLoss.toFixed(2)}` : "--"}
-                    </p>
-                    <p className="text-chiron-text-secondary">
-                      Urgency: {alert.urgency_score ? `${(alert.urgency_score as number).toFixed(0)}/100` : "--"}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-medium text-chiron-text-muted">Actions</p>
-                    <Link
-                      href={`/sites?site=${alert.SITE_ID}`}
-                      className="block text-chiron-accent-teal hover:underline"
+                <div className="px-4 pb-4 pl-8 space-y-4">
+                  {/* Info + Actions row */}
+                  <div className="flex items-start gap-4">
+                    <div className="flex-1 grid grid-cols-3 gap-4 text-xs">
+                      <div className="space-y-1">
+                        <p className="font-medium text-chiron-text-muted">Detection</p>
+                        <p className="text-chiron-text-secondary">
+                          Detected: {formatDateTime((alert.DETECTED_AT as string) || "")}
+                        </p>
+                        <p className="text-chiron-text-secondary">
+                          Checks: {(alert.CHECK_COUNT as number) || 0}
+                        </p>
+                        <p className="text-chiron-text-secondary">
+                          Verification: {verification}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-medium text-chiron-text-muted">Impact</p>
+                        <p className="text-chiron-text-secondary">
+                          kW Offline: {alert.kw_offline ? `${(alert.kw_offline as number).toFixed(1)} kW` : "--"}
+                        </p>
+                        <p className="text-chiron-text-secondary">
+                          Daily Loss: {revLoss ? `$${revLoss.toFixed(2)}` : "--"}
+                        </p>
+                        <p className="text-chiron-text-secondary">
+                          Urgency: {alert.urgency_score ? `${(alert.urgency_score as number).toFixed(0)}/100` : "--"}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-medium text-chiron-text-muted">Links</p>
+                        <Link
+                          href={`/sites?site=${alert.SITE_ID}`}
+                          className="block text-chiron-accent-teal hover:underline"
+                        >
+                          View site details
+                        </Link>
+                        <Link
+                          href={`/performance?site=${alert.SITE_ID}`}
+                          className="block text-chiron-accent-teal hover:underline"
+                        >
+                          Performance analysis
+                        </Link>
+                      </div>
+                    </div>
+
+                    {/* Verify button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleVerify(alert);
+                      }}
+                      disabled={verifyingAlert === alertId}
+                      className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-500 disabled:opacity-50 shrink-0"
                     >
-                      View site details
-                    </Link>
-                    <Link
-                      href={`/performance?site=${alert.SITE_ID}`}
-                      className="block text-chiron-accent-teal hover:underline"
-                    >
-                      Performance analysis
-                    </Link>
+                      <Zap
+                        className={cn(
+                          "h-4 w-4",
+                          verifyingAlert === alertId && "animate-pulse"
+                        )}
+                      />
+                      {verifyingAlert === alertId ? "Verifying..." : "Verify Now"}
+                    </button>
+                  </div>
+
+                  {/* Verification result */}
+                  {verifyMutation.data && verifyingAlert === null && expandedAlert === alertId && (
+                    <div className="rounded-lg bg-chiron-bg-tertiary p-3">
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          color={
+                            (verifyMutation.data as Record<string, unknown>).status === "CONFIRMED"
+                              ? "red"
+                              : (verifyMutation.data as Record<string, unknown>).status === "FALSE_POSITIVE"
+                              ? "green"
+                              : "yellow"
+                          }
+                        >
+                          {(verifyMutation.data as Record<string, unknown>).status as string}
+                        </Badge>
+                        <span className="text-sm text-chiron-text-secondary">
+                          {(verifyMutation.data as Record<string, unknown>).message as string}
+                        </span>
+                      </div>
+                      {(verifyMutation.data as Record<string, unknown>).power_kw !== null && (
+                        <p className="mt-2 text-sm text-chiron-text-muted">
+                          Power:{" "}
+                          <span className="text-blue-400">
+                            {(verifyMutation.data as Record<string, unknown>).power_kw as number} kW
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Issue-Specific Chart */}
+                  <div className="rounded-lg border border-chiron-accent-teal/20 bg-chiron-bg-tertiary p-4">
+                    <h4 className="mb-2 text-sm font-semibold text-chiron-text-primary">
+                      {(alert.ALERT_TYPE as string) === "SITE_OFFLINE"
+                        ? "Site Production & Meter vs Solar Irradiance (72h)"
+                        : (alert.ALERT_TYPE as string) === "INVERTER_OFFLINE"
+                        ? "Affected Inverter vs Peer Average (72h)"
+                        : "Meter Values vs Inverter Total (72h)"}
+                    </h4>
+                    <p className="mb-3 text-xs text-chiron-text-muted">
+                      {(alert.ALERT_TYPE as string) === "SITE_OFFLINE"
+                        ? "Comparing inverter & meter production with Solcast GHI — production drop during sunny periods confirms outage"
+                        : (alert.ALERT_TYPE as string) === "INVERTER_OFFLINE"
+                        ? "Red line shows affected inverter, green shows average of peer inverters — gap indicates underperformance"
+                        : "Comparing meter readings with inverter totals — divergence indicates meter communication issues"}
+                    </p>
+                    {detailLoading ? (
+                      <div className="flex h-48 items-center justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-chiron-accent-teal" />
+                      </div>
+                    ) : alertDetailData?.data && alertDetailData.data.length > 0 ? (
+                      <>
+                        {(alert.ALERT_TYPE as string) === "SITE_OFFLINE" && (
+                          <AreaChart
+                            className="h-48"
+                            data={alertDetailData.data.map((d: Record<string, unknown>) => ({
+                              time: d.MEASUREMENTTIME as string,
+                              "Inverter (kWh)": Math.max(0, (d.INV_TOTAL_ENERGY as number) || 0),
+                              "Meter (kWh)": Math.max(0, (d.METER_ENERGY as number) || 0),
+                              "GHI Solcast (W/m²)": Math.max(0, (d.INSOLATION_GHI_SOLCAST as number) || 0),
+                            }))}
+                            index="time"
+                            categories={["Inverter (kWh)", "Meter (kWh)", "GHI Solcast (W/m²)"]}
+                            colors={["teal", "blue", "amber"]}
+                            valueFormatter={(v) => formatNumber(v, 0)}
+                            showLegend={true}
+                            curveType="monotone"
+                          />
+                        )}
+                        {(alert.ALERT_TYPE as string) === "INVERTER_OFFLINE" && (
+                          <LineChart
+                            className="h-48"
+                            data={alertDetailData.data.map((d: Record<string, unknown>) => ({
+                              time: d.MEASUREMENTTIME as string,
+                              "Affected Inverter (kWh)": Math.max(0, (d.AFFECTED as number) || 0),
+                              "Peer Average (kWh)": Math.max(0, (d.PEER_AVG as number) || 0),
+                            }))}
+                            index="time"
+                            categories={["Affected Inverter (kWh)", "Peer Average (kWh)"]}
+                            colors={["red", "green"]}
+                            valueFormatter={(v) => formatNumber(v, 1)}
+                            showLegend={true}
+                            curveType="monotone"
+                          />
+                        )}
+                        {(alert.ALERT_TYPE as string) === "METER_OFFLINE" &&
+                          (() => {
+                            const allMeterCols = Object.keys(alertDetailData.data[0] || {}).filter(
+                              (k) => k.startsWith("M") && k.endsWith("_VALUE")
+                            );
+                            const meterCols = allMeterCols.filter((m) =>
+                              alertDetailData.data.some((d: Record<string, unknown>) => {
+                                const val = d[m] as number | null;
+                                return val !== null && val !== undefined && val > 0;
+                              })
+                            );
+                            const categories = [
+                              ...meterCols.map((m) => m.replace("_VALUE", "")),
+                              "INV Total",
+                              "GHI Solcast",
+                            ];
+                            const colors = ["blue", "indigo", "violet", "purple", "cyan", "teal", "amber"];
+                            return (
+                              <LineChart
+                                className="h-48"
+                                data={alertDetailData.data.map((d: Record<string, unknown>) => {
+                                  const row: Record<string, unknown> = {
+                                    time: d.MEASUREMENTTIME as string,
+                                    "INV Total": Math.max(0, (d.INV_TOTAL_ENERGY as number) || 0),
+                                    "GHI Solcast": Math.max(0, (d.INSOLATION_GHI_SOLCAST as number) || 0),
+                                  };
+                                  meterCols.forEach((m) => {
+                                    row[m.replace("_VALUE", "")] = Math.max(0, (d[m] as number) || 0);
+                                  });
+                                  return row;
+                                })}
+                                index="time"
+                                categories={categories}
+                                colors={colors.slice(0, categories.length)}
+                                valueFormatter={(v) => formatNumber(v, 0)}
+                                showLegend={true}
+                                curveType="monotone"
+                              />
+                            );
+                          })()}
+                      </>
+                    ) : (
+                      <div className="flex h-48 items-center justify-center text-chiron-text-muted">
+                        <p>No recent data available for this alert</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
