@@ -93,7 +93,7 @@ export default function ActiveIssuesPage() {
     const priorityMap = new Map<string, Record<string, unknown>>();
     if (queueData?.queue) {
       for (const item of queueData.queue) {
-        priorityMap.set(item.site_id as string, item);
+        priorityMap.set(item.site_id as string, item as unknown as Record<string, unknown>);
       }
     }
 
