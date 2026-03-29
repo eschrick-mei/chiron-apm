@@ -16,6 +16,7 @@ SQL Compatibility:
 import os
 import re
 import logging
+from decimal import Decimal
 from typing import Optional, Dict, List, Any, Union
 
 import psycopg2
@@ -24,6 +25,14 @@ import psycopg2.extras
 logger = logging.getLogger(__name__)
 
 PG_DSN = os.environ.get("CHIRON_PG_DSN", "postgresql://chiron:chiron@localhost/chiron_apm")
+
+
+def _pg_value(v):
+    """Convert PG-specific types to JSON-friendly equivalents.
+    Decimal → float (matches Snowflake DictCursor behavior)."""
+    if isinstance(v, Decimal):
+        return float(v)
+    return v
 
 
 class PgConnector:
@@ -91,7 +100,8 @@ class PgConnector:
                 if fetch and cur.description:
                     rows = cur.fetchall()
                     # Convert to plain dicts with UPPER keys (matching Snowflake DictCursor)
-                    results = [{k.upper(): v for k, v in dict(row).items()} for row in rows]
+                    # Also convert Decimal → float to match Snowflake's numeric handling
+                    results = [{k.upper(): _pg_value(v) for k, v in dict(row).items()} for row in rows]
                 else:
                     results = []
 
