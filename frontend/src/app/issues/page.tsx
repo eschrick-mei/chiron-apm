@@ -88,7 +88,7 @@ export default function ActiveIssuesPage() {
 
   // Merge and enrich alerts with priority data
   const enrichedAlerts = useMemo(() => {
-    if (!alertsData?.alerts) return [];
+    if (!alertsData?.alerts) return [] as Array<Record<string, unknown>>;
 
     const priorityMap = new Map<string, Record<string, unknown>>();
     if (queueData?.queue) {
@@ -97,7 +97,7 @@ export default function ActiveIssuesPage() {
       }
     }
 
-    return alertsData.alerts.map((alert) => {
+    return alertsData.alerts.map((alert): Record<string, unknown> => {
       const siteId = alert.SITE_ID as string;
       const priority = priorityMap.get(siteId);
       return {
