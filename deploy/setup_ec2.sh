@@ -35,7 +35,7 @@ dnf install -y -q \
     python3.11 python3.11-pip python3.11-devel \
     nginx \
     gcc make libpq-devel \
-    curl git tar
+    git tar
 
 # Install PostgreSQL 15
 dnf install -y -q postgresql15-server postgresql15
