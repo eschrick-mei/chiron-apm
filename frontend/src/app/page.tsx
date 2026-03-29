@@ -82,7 +82,7 @@ export default function FleetDashboard() {
 
   // Apply preset filters client-side on top of server filters
   const filteredSites = useMemo(() => {
-    const allSites = (sites || []) as FleetSite[];
+    const allSites = (sites || []) as unknown as FleetSite[];
     if (!presetFilter) return allSites;
 
     switch (presetFilter) {
