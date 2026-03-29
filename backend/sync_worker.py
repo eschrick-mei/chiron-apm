@@ -412,6 +412,11 @@ def sync_hourly_data(sf: SnowflakeConnector, pg, days: int = None) -> int:
                 cur.execute("CREATE TEMP TABLE _hourly_tmp (LIKE hourly_data_live INCLUDING ALL) ON COMMIT DROP")
                 buf = StringIO()
                 sub_df = df[common_cols].copy()
+                # Cast integer columns — Snowflake returns 0.0 for INTEGER fields
+                int_cols = ["inverters_producing", "inverters_total", "offline_inverter_count", "outage_flag"]
+                for ic in int_cols:
+                    if ic in sub_df.columns:
+                        sub_df[ic] = pd.to_numeric(sub_df[ic], errors="coerce").astype("Int64")
                 sub_df.to_csv(buf, index=False, header=False, sep='\t', na_rep='\\N')
                 buf.seek(0)
                 cur.copy_from(buf, '_hourly_tmp', columns=common_cols, sep='\t', null='\\N')
